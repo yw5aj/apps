@@ -36,7 +36,7 @@ class MainActivity : Activity() {
     private val pickRequest = 1
 
     private lateinit var pal: Pal
-    private lateinit var display: Typeface
+    private lateinit var titleFont: Typeface
 
     // Stage: pick
     private lateinit var stagePick: LinearLayout
@@ -83,7 +83,7 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         ConvertService.ensureChannels(this)
         pal = Pal.of(this)
-        display = resources.getFont(R.font.xiaowei)
+        titleFont = resources.getFont(R.font.xiaowei)
         buildUi()
         handleIntent(intent)
     }
@@ -240,7 +240,7 @@ class MainActivity : Activity() {
     }
 
     private fun title(size: Float) = TextView(this).apply {
-        typeface = display
+        typeface = titleFont
         setTextSize(TypedValue.COMPLEX_UNIT_SP, size)
         setTextColor(pal.ink)
         setLineSpacing(0f, 1.1f)
@@ -299,7 +299,7 @@ class MainActivity : Activity() {
         ).forEachIndexed { i, s ->
             val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.TOP }
             row.addView(TextView(this).apply {
-                typeface = display
+                typeface = titleFont
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, 20f)
                 setTextColor(pal.accent)
                 text = (i + 1).toString()
@@ -401,14 +401,14 @@ class MainActivity : Activity() {
         // ---- Stage: run ----
         stageRun = column()
         pct = TextView(this).apply {
-            typeface = display
+            typeface = titleFont
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 84f)
             setTextColor(pal.ink)
             includeFontPadding = false
             fontFeatureSettings = "tnum"
         }
         stageRun.add(pct)
-        beats = BeatsView(this, pal, display)
+        beats = BeatsView(this, pal, titleFont)
         stageRun.add(beats)
         val runText = column()
         runLabel = text(17f)
