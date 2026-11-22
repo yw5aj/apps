@@ -61,9 +61,16 @@ p { margin: 0; }
 .how li { display: grid; grid-template-columns: 1.6em 1fr; align-items: baseline; counter-increment: how; }
 .how li::before { content: counter(how); font-family: var(--font-display); font-size: 20px; color: var(--yanzhi); }
 
-.file { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
-.file .name { font-weight: 600; overflow-wrap: anywhere; }
+.file { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.file .count { color: var(--muted); font-size: 15px; }
 .file .link { flex: none; padding: 0; }
+.rows { list-style: none; margin: -8px 0 0; padding: 0; border-top: 1px solid var(--line); }
+.rows li { display: flex; flex-direction: column; gap: 2px; align-items: flex-start; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.rows .name { font-weight: 600; overflow-wrap: anywhere; }
+.rows .meta { color: var(--muted); font-size: 14px; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.rows .meta.bad { color: var(--bad); }
+.rows .link { padding: 4px 0 0; }
+.which { font-weight: 600; overflow-wrap: anywhere; }
 .verdict { font-size: 17px; }
 .verdict.bad { color: var(--bad); }
 
@@ -119,25 +126,26 @@ video { width: 100%; max-height: 62vh; border-radius: 14px; background: #000; }
 
   <section class="stage" id="step-pick">
     <div class="pick btn">
-      选一个舞社下载的视频
-      <input type="file" id="file" accept="video/*,.mov,.mp4" aria-label="选一个舞社下载的视频">
+      选舞社下载的视频
+      <input type="file" id="file" multiple aria-label="选舞社下载的视频，可以多选">
     </div>
     <ol class="how">
       <li>先在舞社网站把视频下载到手机。</li>
-      <li>在这里选它，点“转换并保存”。</li>
+      <li>在这里选它，可以一次选好几条，然后点“转换并保存”。</li>
       <li>转好的 MP4 会自动存进手机的“下载”。</li>
     </ol>
   </section>
 
   <section class="stage" id="step-info" hidden>
     <div class="file">
-      <span class="name" id="fname"></span>
-      <button class="link" id="change" type="button">换一个</button>
+      <span class="count" id="fname"></span>
+      <button class="link" id="change" type="button">重新选</button>
     </div>
+    <ul class="rows" id="files"></ul>
     <p class="verdict" id="verdict"></p>
     <div class="stage" id="ready" hidden>
       <fieldset id="quality-pick" hidden>
-        <legend>画质。大小是按这条视频的时长估的，动作越多越大。</legend>
+        <legend>画质。大小是按视频时长估的，动作越多越大。</legend>
         <div class="qs" id="quality">
           <label class="q"><input type="radio" name="quality" id="q-high" value="high" checked><span><b>高画质</b><small id="est-high">1080p</small></span></label>
           <label class="q"><input type="radio" name="quality" id="q-std" value="std"><span><b>标准</b><small id="est-std">1080p</small></span></label>
@@ -171,6 +179,7 @@ video { width: 100%; max-height: 62vh; border-radius: 14px; background: #000; }
       <span class="beat"><i></i>5</span><span class="beat"><i></i>6</span><span class="beat"><i></i>7</span><span class="beat"><i></i>8</span>
     </div>
     <div>
+      <p class="which" id="run-which"></p>
       <p id="run-label">正在转换</p>
       <p class="muted" id="run-stats"></p>
     </div>
@@ -180,6 +189,7 @@ video { width: 100%; max-height: 62vh; border-radius: 14px; background: #000; }
   <section class="stage" id="step-done" hidden>
     <h2 id="done-title">转好了</h2>
     <video id="preview" controls playsinline preload="metadata"></video>
+    <ul class="rows" id="results" hidden></ul>
     <div>
       <p id="save-note"></p>
       <p class="muted" id="out-info"></p>
@@ -192,9 +202,9 @@ video { width: 100%; max-height: 62vh; border-radius: 14px; background: #000; }
     </div>
   </section>
 
-  <p class="ver">版本 9</p>
+  <p class="ver">版本 10</p>
 </main>
 <script src="vendor/ffmpeg/ffmpeg.js"></script>
-<script src="app.js?v=9"></script>
+<script src="app.js?v=10"></script>
 </body>
 </html>
