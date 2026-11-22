@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Apps</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f6f5f2; --card: #ffffff; --text: #1f1e1c; --muted: #77746d; --line: #e4e1da;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #171614; --card: #22211e; --text: #eceae4; --muted: #99958c; --line: #33312d; }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Noto Sans SC", "Segoe UI", sans-serif;
+    line-height: 1.5;
+  }
+  main { max-width: 720px; margin: 0 auto; padding: 48px 20px 64px; }
+  h1 { font-size: 28px; margin: 0 0 24px; }
+  #list { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+  a.app {
+    display: block; padding: 16px; border-radius: 14px; text-decoration: none; color: inherit;
+    background: var(--card); border: 1px solid var(--line);
+  }
+  a.app:hover, a.app:focus-visible { border-color: var(--muted); }
+  .emoji { font-size: 28px; }
+  .name { font-weight: 600; margin-top: 6px; }
+  .desc { color: var(--muted); font-size: 14px; }
+  #empty { color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Apps</h1>
+  <div id="list"></div>
+  <p id="empty" hidden>还没有 app。</p>
+</main>
+<script>
+  fetch('apps.json', { cache: 'no-cache' })
+    .then(r => r.ok ? r.json() : [])
+    .catch(() => [])
+    .then(apps => {
+      const list = document.getElementById('list');
+      if (!Array.isArray(apps) || apps.length === 0) {
+        document.getElementById('empty').hidden = false;
+        return;
+      }
+      for (const app of apps) {
+        const a = document.createElement('a');
+        a.className = 'app';
+        a.href = encodeURIComponent(app.path) + '/';
+        const add = (cls, text) => {
+          if (!text) return;
+          const d = document.createElement('div');
+          d.className = cls; d.textContent = text; a.appendChild(d);
+        };
+        add('emoji', app.emoji || '📦');
+        add('name', app.name || app.path);
+        add('desc', app.desc);
+        list.appendChild(a);
+      }
+    });
+</script>
+</body>
+</html>
