@@ -100,7 +100,8 @@ ol.how { margin: 0; padding-left: 1.3em; color: var(--muted); font-size: 14px; d
     <label id="audio-pick" hidden>这个视频有多条声音轨。转完没声音就换一条再试。
       <select id="audio-sel"></select>
     </label>
-    <button class="btn" id="go" type="button" hidden>开始转换</button>
+    <button class="btn" id="go" type="button" hidden>转换整条视频</button>
+    <button class="btn ghost" id="try" type="button" hidden>先试转前 5 秒</button>
     <div id="step-run" hidden>
       <div class="row"><span id="run-label">正在转换，请别离开这个页面</span><span class="pct" id="pct">0%</span></div>
       <div class="track"><div class="bar" id="bar"></div></div>
@@ -110,9 +111,10 @@ ol.how { margin: 0; padding-left: 1.3em; color: var(--muted); font-size: 14px; d
   </section>
 
   <section id="step-done" hidden>
-    <h2><span class="n">3</span>试听并保存</h2>
+    <h2><span class="n">3</span><span id="done-title">试听并保存</span></h2>
     <video id="preview" controls playsinline preload="metadata"></video>
     <p class="muted" id="out-info"></p>
+    <button class="btn" id="full" type="button" hidden>画面和声音都正常，转换整条</button>
     <button class="btn" id="save" type="button">保存 MP4 到手机</button>
     <p class="muted" id="save-note"></p>
     <button class="btn ghost" id="redo" type="button" hidden>画面是黑的？把画面也重新转一遍（慢）</button>

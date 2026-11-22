@@ -35,7 +35,7 @@ async function onFile(file) {
   show('step-info', true);
   setStatus('wait', '正在读取视频信息…');
   $('v-info').textContent = '…'; $('a-info').textContent = '…';
-  show('audio-pick', false); show('go', false);
+  show('audio-pick', false); show('go', false); show('try', false);
   let info;
   try { info = await inspect(file); }
   catch (e) {
@@ -77,19 +77,20 @@ async function onFile(file) {
   } else {
     setStatus('ok', '声音是 Google Photos 不认的格式。画面原样保留，只把声音转成 AAC，很快。');
   }
-  show('go', true);
+  show('go', true); show('try', true);
 }
 
-async function run(forceSlow) {
+async function run(forceSlow, limit) {
   const slow = forceSlow === true || state.slow;
+  state.limit = limit || 0; state.lastSlow = slow;
   if (state.url) { URL.revokeObjectURL(state.url); state.url = null; }
   $('preview').removeAttribute('src'); $('preview').load();
-  show('go', false); show('step-run', true); show('step-done', false); show('error', false);
+  show('go', false); show('try', false); show('step-run', true); show('step-done', false); show('error', false);
   $('bar').style.width = '0%'; $('pct').textContent = '0%';
   $('run-label').textContent = slow ? '正在准备…' : '正在转换，请别离开这个页面';
   const audioIndex = Math.max(0, state.info.audio.findIndex((a) => a.id === state.audioId));
   const job = {
-    audioTrackId: state.audioId, audioIndex, duration: state.info.duration,
+    audioTrackId: state.audioId, audioIndex, duration: state.info.duration, limit: state.limit,
     onProgress: (p) => {
       const n = Math.round(p * 100);
       $('bar').style.width = n + '%'; $('pct').textContent = n + '%';
@@ -119,9 +120,11 @@ async function run(forceSlow) {
       (slow ? (job.multiThread ? ' · 多线程' : ' · 单线程') : '');
     show('step-run', false); show('step-done', true);
     show('redo', !slow && HAS_SLOW);
+    show('full', !!state.limit); show('save', !state.limit);
+    $('done-title').textContent = state.limit ? '试看前 ' + state.limit + ' 秒' : '试听并保存';
     $('save-note').textContent = '';
   } catch (e) {
-    show('step-run', false); show('go', true);
+    show('step-run', false); show('go', true); show('try', true);
     if (job.canceled || (e && e.name === 'ConversionCanceledError')) return;
     if (e && e.discarded) {
       const what = e.discarded.map((d) => (d.type === 'video' ? '画面' : '声音')).join('和');
@@ -138,7 +141,7 @@ async function run(forceSlow) {
 
 function outName() {
   const base = (state.file ? state.file.name : 'video').replace(/\.[^.]+$/, '');
-  return base + '_有声.mp4';
+  return base + '_可播放.mp4';
 }
 
 async function save() {
@@ -172,7 +175,9 @@ async function save() {
 $('file').addEventListener('change', (e) => onFile(e.target.files && e.target.files[0]));
 $('audio-sel').addEventListener('change', (e) => { state.audioId = Number(e.target.value); });
 $('go').addEventListener('click', () => run());
-$('redo').addEventListener('click', () => run(true));
+$('redo').addEventListener('click', () => run(true, state.limit));
+$('try').addEventListener('click', () => run(false, 5));
+$('full').addEventListener('click', () => run(state.lastSlow, 0));
 $('cancel').addEventListener('click', () => { if (state.job && state.job.cancel) state.job.cancel(); });
 $('save').addEventListener('click', save);
 $('again').addEventListener('click', () => { $('file').value = ''; reset(); $('fname').textContent = '还没选视频'; window.scrollTo(0, 0); });

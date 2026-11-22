@@ -62,6 +62,7 @@ export async function convert(input, opts) {
       return o;
     },
     tags: (t) => t,
+    ...(opts.limit ? { trim: { end: opts.limit } } : {}),
   });
   const discarded = conversion.discardedTracks
     .filter((d) => d.reason !== 'discarded_by_user')
@@ -79,7 +80,8 @@ export async function convert(input, opts) {
 
 // Slow path: re-encode the picture to H.264 with ffmpeg.wasm (loaded as window.FFmpegWASM).
 export async function transcode(file, opts) {
-  const { duration, onProgress, onStage } = opts;
+  const { onProgress, onStage } = opts;
+  const duration = opts.limit && opts.duration ? Math.min(opts.limit, opts.duration) : opts.duration;
   if (!window.FFmpegWASM) throw new Error('no_ffmpeg');
   const ff = new window.FFmpegWASM.FFmpeg();
   opts.cancel = () => { opts.canceled = true; try { ff.terminate(); } catch (e) {} };
@@ -107,6 +109,7 @@ export async function transcode(file, opts) {
     '-i', '/in/input.mov', '-map', '0:v:0', '-map', '0:a:' + (opts.audioIndex || 0) + '?',
     '-vf', scale, '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '23', '-pix_fmt', 'yuv420p',
     '-c:a', 'aac', '-b:a', '192k', '-ac', '2', '-map_metadata', '0', '-movflags', '+faststart',
+    ...(opts.limit ? ['-t', String(opts.limit)] : []),
     'out.mp4',
   ]);
   if (code !== 0) { try { ff.terminate(); } catch (e) {} const err = new Error('ffmpeg_failed'); err.log = tail.slice(-4).join(' | '); throw err; }
