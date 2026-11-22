@@ -36,12 +36,20 @@ run() {
   local t0=$(date +%s)
   adb shell am start -n $PKG/.MainActivity --es test_input $DIR/$file --es test_start "$start" --es test_preset "$preset" "${extra[@]}"
   if [ "$bg" = 1 ]; then
-    sleep 8
+    sleep 4
     shot "$name-running"
     adb shell input keyevent KEYCODE_HOME
     sleep 3
     echo "--- service while app is in background:"
     adb shell dumpsys activity services $PKG | grep -E "ServiceRecord|isForeground|foregroundServiceType" | head -5
+    # Progress must keep moving while the app is in the background.
+    # Read the progress notification twice while another app is in front.
+    local n1 n2
+    n1=$(adb shell dumpsys notification --noredact | grep -oE "android.text=String \([0-9]+%" | head -1)
+    sleep 8
+    n2=$(adb shell dumpsys notification --noredact | grep -oE "android.text=String \([0-9]+%" | head -1)
+    shot "$name-background"
+    echo "--- notification progress while in background: '$n1' -> '$n2'"
   fi
   # Poll the log (a streaming logcat | grep -m1 would sit until timeout after the match).
   local line="" deadline=$(( $(date +%s) + 900 ))
@@ -82,8 +90,8 @@ run() {
 }
 
 run trial-hw    clip422.mov trial mc   HIGH  0 h264 1920 5 0
-run full-sw-bg  clip422.mov full  x264 SMALL 1 h264 1280 6 1
-run full-auto   clip422.mov full  ""   STD   1 h264 1920 6 1
+run full-sw-bg  clip422.mov full  x264 SMALL 1 h264 1280 20 1
+run full-auto   clip422.mov full  ""   STD   1 h264 1920 20 1
 adb shell am start -n $PKG/.MainActivity
 sleep 3
 shot done

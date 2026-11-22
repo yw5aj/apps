@@ -82,7 +82,7 @@ jobs:
           sudo apt-get install -y -qq ffmpeg jq imagemagick
           mkdir -p test-clips
           # Like the studio's camera: 4K H.265 10-bit 4:2:2, uncompressed PCM, timecode track.
-          ffmpeg -v error -y -f lavfi -i testsrc2=s=3840x2160:r=25 -f lavfi -i "sine=f=440:r=48000" -t 6 \
+          ffmpeg -v error -y -f lavfi -i testsrc2=s=3840x2160:r=25 -f lavfi -i "sine=f=440:r=48000" -t 20 \
             -c:v libx265 -preset ultrafast -x265-params log-level=error -pix_fmt yuv422p10le -tag:v hvc1 \
             -c:a pcm_s24le -ac 2 -timecode 01:00:00:00 test-clips/clip422.mov
           # A picture the phone can already play (exercises the fast path).

@@ -82,6 +82,7 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         ConvertService.ensureChannels(this)
+        actionBar?.hide()
         pal = Pal.of(this)
         titleFont = resources.getFont(R.font.xiaowei)
         buildUi()
