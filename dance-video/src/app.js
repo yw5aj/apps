@@ -11,6 +11,7 @@ const QUALITY = {
   small: { maxSide: 1280, crf: 24, mbPerSec: 0.37, res: '720p' },
   std: { maxSide: 1920, crf: 23, mbPerSec: 0.8, res: '1080p' },
   high: { maxSide: 1920, crf: 18, mbPerSec: 1.8, res: '1080p' },
+  ultra: { maxSide: 2560, crf: 18, mbPerSec: 3.0, res: '1440p' },
 };
 
 function store(key, value) {
@@ -130,7 +131,7 @@ function labelQuality() {
   for (const key of Object.keys(QUALITY)) {
     const q = QUALITY[key];
     const est = d ? Math.max(5, Math.round(q.mbPerSec * d / 5) * 5) : 0;
-    $('est-' + key).textContent = est ? '约 ' + est + ' MB' : q.res;
+    $('est-' + key).textContent = est ? '约 ' + est + ' MB' : '';
   }
 }
 

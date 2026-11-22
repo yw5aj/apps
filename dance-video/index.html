@@ -76,7 +76,7 @@ p { margin: 0; }
 
 fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
 legend { padding: 0; margin-bottom: 8px; font-size: 15px; color: var(--muted); }
-.qs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.qs { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
 .q { position: relative; display: block; }
 .q input { position: absolute; opacity: 0; inset: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
 .q span { display: flex; flex-direction: column; gap: 2px; align-items: flex-start; height: 100%; padding: 12px 12px 11px; border-radius: 14px; border: 1.5px solid var(--line); background: var(--paper); }
@@ -147,9 +147,10 @@ video { width: 100%; max-height: 62vh; border-radius: 14px; background: #000; }
       <fieldset id="quality-pick" hidden>
         <legend>画质。大小是按视频时长估的，动作越多越大。</legend>
         <div class="qs" id="quality">
-          <label class="q"><input type="radio" name="quality" id="q-high" value="high" checked><span><b>高画质</b><small id="est-high">1080p</small></span></label>
-          <label class="q"><input type="radio" name="quality" id="q-std" value="std"><span><b>标准</b><small id="est-std">1080p</small></span></label>
-          <label class="q"><input type="radio" name="quality" id="q-small" value="small"><span><b>小文件</b><small id="est-small">720p</small></span></label>
+          <label class="q"><input type="radio" name="quality" id="q-ultra" value="ultra"><span><b>超清 1440p</b><small id="est-ultra">最慢</small></span></label>
+          <label class="q"><input type="radio" name="quality" id="q-high" value="high" checked><span><b>高画质 1080p</b><small id="est-high"></small></span></label>
+          <label class="q"><input type="radio" name="quality" id="q-std" value="std"><span><b>标准 1080p</b><small id="est-std"></small></span></label>
+          <label class="q"><input type="radio" name="quality" id="q-small" value="small"><span><b>小文件 720p</b><small id="est-small"></small></span></label>
         </div>
       </fieldset>
       <button class="btn" id="go" type="button">转换并保存</button>
@@ -202,9 +203,9 @@ video { width: 100%; max-height: 62vh; border-radius: 14px; background: #000; }
     </div>
   </section>
 
-  <p class="ver">版本 10</p>
+  <p class="ver">版本 11</p>
 </main>
 <script src="vendor/ffmpeg/ffmpeg.js"></script>
-<script src="app.js?v=10"></script>
+<script src="app.js?v=11"></script>
 </body>
 </html>
