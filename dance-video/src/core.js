@@ -91,10 +91,17 @@ export async function transcode(file, opts) {
   const cfg = { coreURL: base + 'ffmpeg-core.js', wasmURL: base + 'ffmpeg-core.wasm' };
   if (mt) cfg.workerURL = base + 'ffmpeg-core.worker.js';
   if (onStage) onStage('load');
+  const log = (m) => { if (opts.onLog) opts.onLog(m); };
+  log('[app] ' + (mt ? '多线程' : '单线程') + '，CPU 核数 ' + (navigator.hardwareConcurrency || '?') + '，内存 ' + (navigator.deviceMemory || '?') + ' GB');
+  log('[app] 加载 ffmpeg 组件…');
   await ff.load(cfg);
+  log('[app] 组件加载完成');
   const tail = [];
   ff.on('log', ({ message }) => {
     tail.push(message); if (tail.length > 30) tail.shift();
+    if (opts.onLog) opts.onLog(message);
+    const f = /frame=\s*(\d+)\s+fps=\s*([\d.]+)/.exec(message);
+    if (f && opts.onStats) opts.onStats({ frame: +f[1], fps: +f[2] });
     const m = /time=(\d+):(\d+):(\d+(?:\.\d+)?)/.exec(message);
     if (m && duration && onProgress) {
       const t = (+m[1]) * 3600 + (+m[2]) * 60 + (+m[3]);
@@ -103,15 +110,21 @@ export async function transcode(file, opts) {
   });
   await ff.createDir('/in');
   await ff.mount('WORKERFS', { files: [new File([file], 'input.mov')] }, '/in');
+  log('[app] 输入文件已挂载，开始转码');
   if (onStage) onStage('encode');
   const scale = "scale=w='if(gte(iw,ih),min(1920,iw),-2)':h='if(gte(iw,ih),-2,min(1920,ih))'";
+  const q = new URLSearchParams(location.search).get('threads');
+  const threads = String(q ? Math.max(1, +q || 1) : Math.max(1, Math.min(4, navigator.hardwareConcurrency || 2)));
+  opts.threads = threads;
+  log('[app] 线程数 ' + threads);
   const code = await ff.exec([
-    '-i', '/in/input.mov', '-map', '0:v:0', '-map', '0:a:' + (opts.audioIndex || 0) + '?',
-    '-vf', scale, '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '23', '-pix_fmt', 'yuv420p',
+    ...(mt ? ['-threads', threads] : []), '-i', '/in/input.mov', '-map', '0:v:0', '-map', '0:a:' + (opts.audioIndex || 0) + '?',
+    '-vf', scale, '-c:v', 'libx264', ...(mt ? ['-threads', threads] : []), '-preset', 'ultrafast', '-crf', '23', '-pix_fmt', 'yuv420p',
     '-c:a', 'aac', '-b:a', '192k', '-ac', '2', '-map_metadata', '0', '-movflags', '+faststart',
     ...(opts.limit ? ['-t', String(opts.limit)] : []),
     'out.mp4',
   ]);
+  log('[app] ffmpeg 结束，返回码 ' + code);
   if (code !== 0) { try { ff.terminate(); } catch (e) {} const err = new Error('ffmpeg_failed'); err.log = tail.slice(-4).join(' | '); throw err; }
   const data = await ff.readFile('out.mp4');
   try { ff.terminate(); } catch (e) {}

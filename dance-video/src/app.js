@@ -80,7 +80,9 @@ async function onFile(file) {
   show('go', true); show('try', true);
 }
 
+const logLines = [];
 async function run(forceSlow, limit) {
+  logLines.length = 0; $('log').textContent = ''; show('log-box', forceSlow === true || state.slow);
   const slow = forceSlow === true || state.slow;
   state.limit = limit || 0; state.lastSlow = slow;
   if (state.url) { URL.revokeObjectURL(state.url); state.url = null; }
@@ -95,15 +97,26 @@ async function run(forceSlow, limit) {
       const n = Math.round(p * 100);
       $('bar').style.width = n + '%'; $('pct').textContent = n + '%';
     },
+    onStats: (x) => { job.stats = x; },
+    onLog: (m) => {
+      const el = $('log'); logLines.push(m); if (logLines.length > 500) logLines.shift();
+      el.textContent = logLines.join('\n'); el.scrollTop = el.scrollHeight;
+    },
     onStage: (st) => {
+      job.stage = st;
       $('run-label').textContent = st === 'load' ? '正在加载转换组件（第一次要下载约 30 MB）…' : '正在重新编码画面。可以切去别的 App，别关掉这个页面';
     },
   };
   state.job = job;
+  const t0 = performance.now();
   if (slow) keepAliveStart();
+  const tick = setInterval(() => {
+    const sec = Math.round((performance.now() - t0) / 1000);
+    const el = Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0');
+    $('run-stats').textContent = '已用 ' + el + (job.stats ? ' · 已处理 ' + job.stats.frame + ' 帧 · 每秒 ' + job.stats.fps + ' 帧' : (slow && job.stage === 'encode' ? ' · 还没出第一帧' : '')) + (slow ? (job.multiThread ? ' · 多线程' : ' · 单线程') : '');
+  }, 1000);
   let lock = null;
   try { if (slow && navigator.wakeLock) lock = await navigator.wakeLock.request('screen'); } catch (e) { lock = null; }
-  const t0 = performance.now();
   try {
     let buf;
     if (slow) {
@@ -136,6 +149,7 @@ async function run(forceSlow, limit) {
         '。如果是手机内存不够，关掉别的 App 再试一次。');
     }
   } finally {
+    clearInterval(tick); $('run-stats').textContent = '';
     keepAliveStop();
     try { if (lock) await lock.release(); } catch (e) {}
   }
@@ -205,4 +219,5 @@ $('try').addEventListener('click', () => run(false, 5));
 $('full').addEventListener('click', () => run(state.lastSlow, 0));
 $('cancel').addEventListener('click', () => { if (state.job && state.job.cancel) state.job.cancel(); });
 $('save').addEventListener('click', save);
+$('log-copy').addEventListener('click', () => { try { navigator.clipboard.writeText(logLines.join('\n')).then(() => { $('log-copy').textContent = '已复制'; }, () => {}); } catch (e) {} });
 $('again').addEventListener('click', () => { $('file').value = ''; reset(); $('fname').textContent = '还没选视频'; window.scrollTo(0, 0); });
