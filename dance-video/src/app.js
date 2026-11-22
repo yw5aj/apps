@@ -82,7 +82,7 @@ async function onFile(file) {
 
 const logLines = [];
 async function run(forceSlow, limit) {
-  logLines.length = 0; $('log').textContent = ''; show('log-box', forceSlow === true || state.slow);
+  logLines.length = 0; $('log').textContent = '';
   const slow = forceSlow === true || state.slow;
   state.limit = limit || 0; state.lastSlow = slow;
   if (state.url) { URL.revokeObjectURL(state.url); state.url = null; }
