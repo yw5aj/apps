@@ -15,6 +15,8 @@ import android.os.PowerManager
 import android.provider.MediaStore
 import android.util.Log
 import java.io.File
+import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.concurrent.thread
 
 /**
@@ -165,11 +167,32 @@ class ConvertService : Service() {
                 }
             }
         }
+        // Watchdog: a hardware encoder that never produces a frame, or any run that stops
+        // moving, is killed so the fallback (or the error screen) can take over.
+        val startedAt = System.currentTimeMillis()
+        var lastOut = -1L
+        val lastAdvance = AtomicLong(0L)
+        val stalled = AtomicReference("")
+        val watchdog = thread(name = "ffmpeg-watchdog") {
+            try {
+                while (true) {
+                    Thread.sleep(5000)
+                    val now = System.currentTimeMillis()
+                    if (enc == "mc" && lastAdvance.get() == 0L && now - startedAt > 45_000) {
+                        stalled.set("硬件编码 45 秒没有出画面"); p.destroy(); break
+                    }
+                    if (now - maxOf(lastAdvance.get(), startedAt) > 180_000) {
+                        stalled.set("3 分钟没有进展"); p.destroy(); break
+                    }
+                }
+            } catch (_: InterruptedException) {}
+        }
         p.inputStream.bufferedReader().forEachLine { line ->
             val k = line.substringBefore('=')
             val v = line.substringAfter('=', "")
             when (k) {
                 "out_time_us" -> v.toLongOrNull()?.let {
+                    if (it > lastOut && it > 0) { lastOut = it; lastAdvance.set(System.currentTimeMillis()) }
                     if (total > 0) Job.progress = (it / 1e6 / total).coerceIn(0.0, 1.0)
                 }
                 "fps" -> Job.fps = v
@@ -177,10 +200,14 @@ class ConvertService : Service() {
             }
         }
         val code = p.waitFor()
+        watchdog.interrupt()
         errThread.join(2000)
         proc = null
         val tail = synchronized(lines) { lines.joinToString("\n") }
-        return (code == 0 && out.length() > 0) to "退出码 $code\n$tail"
+        val why = stalled.get()
+        if (why.isNotEmpty()) Log.w(TAG, "watchdog: $why")
+        val head = if (why.isNotEmpty()) "已停止：$why\n" else ""
+        return (code == 0 && out.length() > 0 && why.isEmpty()) to "${head}退出码 $code\n$tail"
     }
 
     private fun tick() {

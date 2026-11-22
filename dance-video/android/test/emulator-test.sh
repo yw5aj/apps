@@ -43,8 +43,13 @@ run() {
     echo "--- service while app is in background:"
     adb shell dumpsys activity services $PKG | grep -E "ServiceRecord|isForeground|foregroundServiceType" | head -5
   fi
-  local line
-  line=$(timeout 1200 adb logcat -v brief -s DanceVideo:V | grep -m1 -E "DVTEST (DONE|FAIL|CANCELED)" | tr -d '\r')
+  # Poll the log (a streaming logcat | grep -m1 would sit until timeout after the match).
+  local line="" deadline=$(( $(date +%s) + 900 ))
+  while [ -z "$line" ] && [ "$(date +%s)" -lt "$deadline" ]; do
+    sleep 5
+    line=$(adb logcat -d -v brief -s DanceVideo:V | grep -m1 -E "DVTEST (DONE|FAIL|CANCELED)" | tr -d '\r')
+  done
+  [ -z "$line" ] && line="TIMEOUT after 900s"
   local secs=$(( $(date +%s) - t0 ))
   echo "result after ${secs}s: $line"
   adb logcat -d -v brief -s DanceVideo:V | grep -v "^--------" | tail -45
