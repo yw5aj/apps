@@ -1,0 +1,10 @@
+.gradle/
+build/
+app/build/
+build-ffmpeg/
+app/src/main/jniLibs/
+test-clips/
+local.properties
+*.apk
+*.jks
+*.keystore

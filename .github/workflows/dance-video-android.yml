@@ -1,0 +1,120 @@
+name: dance-video-android
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "dance-video/android/**"
+      - ".github/workflows/dance-video-android.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: dance-video-android
+  cancel-in-progress: true
+
+jobs:
+  build-test-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    defaults:
+      run:
+        working-directory: dance-video/android
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Cache ffmpeg build
+        id: ffcache
+        uses: actions/cache@v4
+        with:
+          path: dance-video/android/build-ffmpeg/out
+          key: ffmpeg-${{ hashFiles('dance-video/android/build-ffmpeg.sh') }}
+
+      - name: Build ffmpeg for Android
+        if: steps.ffcache.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq nasm pkg-config
+          bash build-ffmpeg.sh
+
+      - name: Put ffmpeg into the app
+        run: |
+          for abi in arm64-v8a x86_64; do
+            mkdir -p app/src/main/jniLibs/$abi
+            cp build-ffmpeg/out/$abi/ffmpeg app/src/main/jniLibs/$abi/libffmpeg.so
+          done
+          ls -la app/src/main/jniLibs/*
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.11.1"
+
+      - name: Get signing key
+        env:
+          KEYSTORE_B64: ${{ secrets.DANCE_VIDEO_KEYSTORE }}
+          KEYSTORE_PASSWORD: ${{ secrets.DANCE_VIDEO_KEYSTORE_PASSWORD }}
+        run: |
+          KS="$RUNNER_TEMP/release.jks"
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$KS"
+            echo "DV_KEYSTORE_PASSWORD=${KEYSTORE_PASSWORD:-dancevideo}" >> "$GITHUB_ENV"
+            echo "Signing with the key from repo secrets."
+          else
+            keytool -genkeypair -keystore "$KS" -storepass dancevideo -keypass dancevideo -alias dancevideo \
+              -keyalg RSA -keysize 2048 -validity 36500 -dname "CN=Dance Video"
+            echo "::warning::No DANCE_VIDEO_KEYSTORE secret: signed with a throwaway key, so this APK cannot update over an earlier one."
+          fi
+          echo "DV_KEYSTORE=$KS" >> "$GITHUB_ENV"
+
+      - name: Build APK
+        env:
+          VERSION_CODE: ${{ github.run_number }}
+        run: gradle --no-daemon --stacktrace assembleRelease
+
+      - name: Make test videos
+        run: |
+          sudo apt-get install -y -qq ffmpeg jq imagemagick
+          mkdir -p test-clips
+          # Like the studio's camera: 4K H.265 10-bit 4:2:2, uncompressed PCM, timecode track.
+          ffmpeg -v error -y -f lavfi -i testsrc2=s=3840x2160:r=25 -f lavfi -i "sine=f=440:r=48000" -t 6 \
+            -c:v libx265 -preset ultrafast -x265-params log-level=error -pix_fmt yuv422p10le -tag:v hvc1 \
+            -c:a pcm_s24le -ac 2 -timecode 01:00:00:00 test-clips/clip422.mov
+          # A picture the phone can already play (exercises the fast path).
+          ffmpeg -v error -y -f lavfi -i testsrc2=s=1920x1080:r=30 -f lavfi -i "sine=f=660:r=48000" -t 6 \
+            -c:v libx264 -preset ultrafast -pix_fmt yuv420p -c:a pcm_s16le -ac 2 test-clips/clip420.mov
+          ls -la test-clips
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Test on an emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          cores: 4
+          ram-size: 4096M
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: bash dance-video/android/test/emulator-test.sh
+
+      - name: Publish APK
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp app/build/outputs/apk/release/app-release.apk dance-video.apk
+          gh release create "dance-video-android-${{ github.run_number }}" dance-video.apk \
+            --title "舞社视频转换 Android 版 #${{ github.run_number }}" \
+            --notes "在手机上下载 dance-video.apk 安装。之后的版本可以直接覆盖安装。" \
+            --latest
