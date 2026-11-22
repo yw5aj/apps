@@ -5,37 +5,99 @@ const VIDEO_NAMES = { hevc: 'H.265', avc: 'H.264', prores: 'ProRes', vp9: 'VP9',
 const state = { file: null, info: null, audioId: null, blob: null, url: null, job: null, slow: false };
 const HAS_SLOW = !!window.FFmpegWASM;
 
+// mbPerSec was measured on one real studio clip; other clips will differ with how much motion they have.
+const QUALITY = {
+  small: { maxSide: 1280, crf: 24, mbPerSec: 0.37, res: '720p' },
+  std: { maxSide: 1920, crf: 23, mbPerSec: 0.8, res: '1080p' },
+  high: { maxSide: 1920, crf: 18, mbPerSec: 1.8, res: '1080p' },
+};
+
+function store(key, value) {
+  try {
+    if (value === undefined) return localStorage.getItem(key);
+    localStorage.setItem(key, String(value));
+  } catch (e) { /* storage can be unavailable; the page works without it */ }
+  return null;
+}
 function show(id, on) { $(id).hidden = !on; }
 function mb(n) { return (n / 1048576).toFixed(n > 10485760 ? 0 : 1) + ' MB'; }
+function clock(sec) { sec = Math.max(0, Math.round(sec)); return Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0'); }
+function minutes(sec) { return sec < 50 ? '不到 1 分钟' : '大约 ' + Math.max(1, Math.round(sec / 60)) + ' 分钟'; }
+function resName(v) {
+  const side = Math.max(v.width, v.height);
+  if (side >= 3800) return '4K';
+  if (side >= 1900) return '1080p';
+  if (side >= 1260) return '720p';
+  return v.width + '×' + v.height;
+}
 function audioName(a) {
   const c = a.codec || '未知';
   const m = /^pcm-([a-z])(\d+)/.exec(c);
   const name = m ? 'PCM ' + m[2] + ' 位（未压缩）' : c.toUpperCase();
-  return name + ' · ' + a.channels + ' 声道 · ' + Math.round(a.sampleRate / 1000) + ' kHz';
+  return name + '，' + a.channels + ' 声道，' + Math.round(a.sampleRate / 1000) + ' kHz';
+}
+function quality() {
+  const el = document.querySelector('input[name="quality"]:checked');
+  return el && QUALITY[el.value] ? el.value : 'high';
 }
 function setStatus(kind, text) {
   const el = $('verdict');
   el.className = 'verdict ' + kind;
   el.textContent = text;
 }
-function reset() {
+function setProgress(p) {
+  const n = Math.round(p * 100);
+  $('pct').firstChild.nodeValue = String(n);
+  const beats = $('beats').children;
+  const now = Math.min(7, Math.floor(p * 8));
+  for (let i = 0; i < beats.length; i++) {
+    const f = Math.max(0, Math.min(1, p * 8 - i));
+    beats[i].firstElementChild.style.setProperty('--f', f.toFixed(3));
+    beats[i].classList.toggle('on', f > 0);
+    beats[i].classList.toggle('now', i === now && p < 1);
+  }
+}
+function stage(name) {
+  show('step-pick', name === 'pick');
+  show('step-info', name === 'info');
+  show('step-run', name === 'run');
+  show('step-done', name === 'done');
+}
+function clearResult() {
   if (state.url) URL.revokeObjectURL(state.url);
   state.blob = null; state.url = null;
   $('preview').removeAttribute('src'); $('preview').load();
-  show('step-info', false); show('step-run', false); show('step-done', false);
-  $('error').textContent = ''; show('error', false);
 }
 function fail(msg) { $('error').textContent = msg; show('error', true); }
 
+function describe() {
+  const info = state.info, v = info.video[0];
+  const dur = info.duration ? Math.round(info.duration) + ' 秒，' : '';
+  if (!state.slow) {
+    return dur + resName(v) + '。手机能放它的画面，只需要转声音，几秒就好。';
+  }
+  const speed = Number(store('dv-speed'));
+  const eta = speed > 0 && info.duration ? minutes(speed * info.duration) : '几分钟';
+  return dur + resName(v) + '。手机放不了原片，转成 MP4 要' + eta + '。转的时候可以切去别的 App，别关掉这个页面。';
+}
+
+function labelQuality() {
+  const d = state.info && state.info.duration;
+  for (const key of Object.keys(QUALITY)) {
+    const q = QUALITY[key];
+    const est = d ? Math.max(5, Math.round(q.mbPerSec * d / 5) * 5) : 0;
+    $('est-' + key).textContent = est ? '约 ' + est + ' MB' : q.res;
+  }
+}
+
 async function onFile(file) {
-  reset();
-  if (!file) return;
+  clearResult();
+  $('error').textContent = ''; show('error', false);
+  if (!file) { stage('pick'); return; }
   state.file = file;
-  $('fname').textContent = file.name + ' · ' + mb(file.size);
-  show('step-info', true);
-  setStatus('wait', '正在读取视频信息…');
-  $('v-info').textContent = '…'; $('a-info').textContent = '…';
-  show('audio-pick', false); show('go', false); show('try', false); show('quality-pick', false);
+  $('fname').textContent = file.name + '，' + mb(file.size);
+  stage('info'); show('ready', false);
+  setStatus('wait', '正在读取视频…');
   let info;
   try { info = await inspect(file); }
   catch (e) {
@@ -44,9 +106,9 @@ async function onFile(file) {
   }
   state.info = info;
   const v = info.video[0];
-  if (!v) { setStatus('bad', '这个文件里没有画面。'); return; }
-  $('v-info').textContent = (VIDEO_NAMES[v.codec] || v.codec || '未知') + ' · ' + v.width + '×' + v.height +
-    (info.duration ? ' · ' + Math.round(info.duration) + ' 秒' : '');
+  if (!v) { setStatus('bad', '这个文件里没有画面，转不了。'); return; }
+  $('v-info').textContent = (VIDEO_NAMES[v.codec] || v.codec || '未知') + '，' + v.width + '×' + v.height +
+    (v.codecString ? '（' + v.codecString + '）' : '');
   if (!info.audio.length) {
     $('a-info').textContent = '没有声音轨';
     setStatus('bad', '这个视频本身没有录声音，转换也救不回来。');
@@ -58,63 +120,38 @@ async function onFile(file) {
   sel.innerHTML = '';
   info.audio.forEach((a) => {
     const o = document.createElement('option');
-    o.value = String(a.id); o.textContent = '第 ' + a.number + ' 轨 · ' + audioName(a);
+    o.value = String(a.id); o.textContent = '第 ' + a.number + ' 轨：' + audioName(a);
     sel.appendChild(o);
   });
   show('audio-pick', info.audio.length > 1);
-  const a = info.audio[0];
   const copyable = v.codec === 'hevc' || v.codec === 'avc';
   state.slow = !(copyable && v.canDecode);
-  $('v-info').textContent += v.codecString ? '（' + v.codecString + '）' : '';
   if (state.slow && !HAS_SLOW) {
-    setStatus('bad', '这台手机放不了这种画面，这个页面也没法重新编码画面。');
+    setStatus('bad', '手机放不了这种画面，这个页面现在也没法重新编码。请刷新页面再试一次。');
     return;
   }
   show('quality-pick', state.slow);
-  labelQuality(info.duration);
-  if (state.slow) {
-    setStatus('warn', '这台手机放不了这种画面。需要把画面和声音都重新转一遍，大约要几分钟。转换时可以切去别的 App，别关掉这个页面。');
-  } else if (a.codec === 'aac' && a.channels <= 2) {
-    setStatus('warn', '声音已经是 AAC，按理能播。可以转一次试试，没变化的话问题在别处。');
-  } else {
-    setStatus('ok', '声音是 Google Photos 不认的格式。画面原样保留，只把声音转成 AAC，很快。');
-  }
-  show('go', true); show('try', true);
+  labelQuality();
+  setStatus('ok', describe());
+  show('ready', true);
 }
 
-// mbPerSec was measured on one real studio clip; other clips will differ with how much motion they have.
-const QUALITY = {
-  small: { maxSide: 1280, crf: 24, mbPerSec: 0.37, label: '小文件 · 720p' },
-  std: { maxSide: 1920, crf: 23, mbPerSec: 0.8, label: '标准 · 1080p' },
-  high: { maxSide: 1920, crf: 18, mbPerSec: 1.8, label: '高画质 · 1080p' },
-};
-function labelQuality(duration) {
-  for (const o of $('quality').options) {
-    const q = QUALITY[o.value];
-    const est = duration ? Math.max(1, Math.round(q.mbPerSec * duration / 5) * 5) : 0;
-    o.textContent = q.label + (est ? ' · 这条约 ' + est + ' MB' : '');
-  }
-}
-try { const q = localStorage.getItem('dv-quality'); if (q && QUALITY[q]) $('quality').value = q; } catch (e) {}
-$('quality').addEventListener('change', (e) => { try { localStorage.setItem('dv-quality', e.target.value); } catch (err) {} });
 const logLines = [];
 async function run(forceSlow, limit) {
   logLines.length = 0; $('log').textContent = '';
   const slow = forceSlow === true || state.slow;
   state.limit = limit || 0; state.lastSlow = slow;
-  if (state.url) { URL.revokeObjectURL(state.url); state.url = null; }
-  $('preview').removeAttribute('src'); $('preview').load();
-  show('go', false); show('try', false); show('step-run', true); show('step-done', false); show('error', false);
-  $('bar').style.width = '0%'; $('pct').textContent = '0%';
-  $('run-label').textContent = slow ? '正在准备…' : '正在转换，请别离开这个页面';
+  clearResult();
+  show('error', false);
+  stage('run'); setProgress(0);
+  $('run-label').textContent = slow ? '正在准备…' : '正在转声音，马上就好';
+  $('run-stats').textContent = '';
   const audioIndex = Math.max(0, state.info.audio.findIndex((a) => a.id === state.audioId));
+  const q = QUALITY[quality()];
   const job = {
     audioTrackId: state.audioId, audioIndex, duration: state.info.duration, limit: state.limit,
-    ...QUALITY[$('quality').value || 'high'],
-    onProgress: (p) => {
-      const n = Math.round(p * 100);
-      $('bar').style.width = n + '%'; $('pct').textContent = n + '%';
-    },
+    maxSide: q.maxSide, crf: q.crf, progress: 0,
+    onProgress: (p) => { job.progress = p; setProgress(p); },
     onStats: (x) => { job.stats = x; },
     onLog: (m) => {
       const el = $('log'); logLines.push(m); if (logLines.length > 500) logLines.shift();
@@ -122,16 +159,20 @@ async function run(forceSlow, limit) {
     },
     onStage: (st) => {
       job.stage = st;
-      $('run-label').textContent = st === 'load' ? '正在加载转换组件（第一次要下载约 30 MB）…' : '正在重新编码画面。可以切去别的 App，别关掉这个页面';
+      $('run-label').textContent = st === 'load'
+        ? '正在加载转换组件。第一次要下载约 30 MB。'
+        : '正在转换。可以切去别的 App，别关掉这个页面。';
     },
   };
   state.job = job;
   const t0 = performance.now();
   if (slow) keepAliveStart();
   const tick = setInterval(() => {
-    const sec = Math.round((performance.now() - t0) / 1000);
-    const el = Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0');
-    $('run-stats').textContent = '已用 ' + el + (job.stats ? ' · 已处理 ' + job.stats.frame + ' 帧 · 每秒 ' + job.stats.fps + ' 帧' : (slow && job.stage === 'encode' ? ' · 还没出第一帧' : '')) + (slow ? (job.multiThread ? ' · 多线程' : ' · 单线程') : '');
+    const sec = (performance.now() - t0) / 1000;
+    let text = '已用 ' + clock(sec);
+    if (job.progress > 0.04 && job.progress < 1) text += '，大约还要 ' + clock(sec * (1 - job.progress) / job.progress);
+    else if (slow && job.stage === 'encode' && !job.stats) text += '，还没出第一帧';
+    $('run-stats').textContent = text;
   }, 1000);
   let lock = null;
   try { if (slow && navigator.wakeLock) lock = await navigator.wakeLock.request('screen'); } catch (e) { lock = null; }
@@ -144,20 +185,23 @@ async function run(forceSlow, limit) {
       const info = await inspect(state.file);
       buf = await convert(info.input, job);
     }
+    const sec = (performance.now() - t0) / 1000;
+    if (slow && !state.limit && state.info.duration) store('dv-speed', (sec / state.info.duration).toFixed(2));
     state.blob = new Blob([buf], { type: 'video/mp4' });
     state.url = URL.createObjectURL(state.blob);
     $('preview').src = state.url;
-    $('out-info').textContent = outName() + ' · ' + mb(state.blob.size) + ' · 用时 ' +
-      Math.max(1, Math.round((performance.now() - t0) / 1000)) + ' 秒' +
-      (slow ? (job.multiThread ? ' · 多线程' : ' · 单线程') : '');
-    show('step-run', false); show('step-done', true);
+    $('out-info').textContent = outName() + '，' + mb(state.blob.size) + '，用时 ' + clock(sec) +
+      (slow ? (job.multiThread ? '，多线程' : '，单线程') : '');
+    stage('done');
     show('redo', !slow && HAS_SLOW);
     show('full', !!state.limit); show('save', !state.limit);
-    $('done-title').textContent = state.limit ? '试看前 ' + state.limit + ' 秒' : '试听并保存';
+    $('again').classList.toggle('quiet', !!state.limit);
+    $('again').textContent = state.limit ? '换一个视频' : '再转一个';
+    $('done-title').textContent = state.limit ? '前 ' + state.limit + ' 秒转好了，先看看' : '转好了';
     $('save-note').textContent = '';
-    if (!state.limit) { try { await save(true); } catch (e) {} }
+    if (!state.limit) { try { await save(true); } catch (e) { /* the manual button stays */ } }
   } catch (e) {
-    show('step-run', false); show('go', true); show('try', true);
+    stage('info');
     if (job.canceled || (e && e.name === 'ConversionCanceledError')) return;
     if (e && e.discarded) {
       const what = e.discarded.map((d) => (d.type === 'video' ? '画面' : '声音')).join('和');
@@ -168,9 +212,9 @@ async function run(forceSlow, limit) {
         '。如果是手机内存不够，关掉别的 App 再试一次。');
     }
   } finally {
-    clearInterval(tick); $('run-stats').textContent = '';
+    clearInterval(tick);
     keepAliveStop();
-    try { if (lock) await lock.release(); } catch (e) {}
+    try { if (lock) await lock.release(); } catch (e) { /* already released */ }
   }
 }
 
@@ -193,9 +237,9 @@ function keepAliveStart() {
     if (navigator.mediaSession && window.MediaMetadata) {
       navigator.mediaSession.metadata = new MediaMetadata({ title: '正在转换视频', artist: '舞社视频转换' });
     }
-  } catch (e) {}
+  } catch (e) { /* conversion still works in the foreground */ }
 }
-function keepAliveStop() { try { if (keepAudio) keepAudio.pause(); } catch (e) {} }
+function keepAliveStop() { try { if (keepAudio) keepAudio.pause(); } catch (e) { /* nothing to stop */ } }
 
 function outName() {
   const base = (state.file ? state.file.name : 'video').replace(/\.[^.]+$/, '');
@@ -213,7 +257,7 @@ async function save(auto) {
   if (downloads) {
     try {
       await downloads.save({ filename, data: state.blob });
-      note.textContent = '已保存。到手机的“下载”里找，再添加到 Google Photos。';
+      note.textContent = '已保存到手机的“下载”。';
     } catch (e) {
       const code = e && e.code;
       if (code === 'declined') note.textContent = '已取消。想保存就再点一次。';
@@ -228,17 +272,27 @@ async function save(auto) {
   a.href = state.url; a.download = filename;
   document.body.appendChild(a); a.click(); a.remove();
   note.textContent = auto === true
-    ? '已自动保存到手机的“下载”。没看到的话，点上面的按钮再存一次。'
-    : '已开始下载。到手机的“下载”里找，再添加到 Google Photos。';
+    ? '已自动存进手机的“下载”，可以添加到 Google Photos 了。'
+    : '又存了一次，在手机的“下载”里。';
 }
 
+function startOver() { $('file').value = ''; clearResult(); stage('pick'); window.scrollTo(0, 0); }
+
+const savedQuality = store('dv-quality');
+if (savedQuality && QUALITY[savedQuality]) $('q-' + savedQuality).checked = true;
+$('quality').addEventListener('change', () => store('dv-quality', quality()));
 $('file').addEventListener('change', (e) => onFile(e.target.files && e.target.files[0]));
+$('change').addEventListener('click', () => $('file').click());
 $('audio-sel').addEventListener('change', (e) => { state.audioId = Number(e.target.value); });
 $('go').addEventListener('click', () => run());
 $('redo').addEventListener('click', () => run(true, state.limit));
 $('try').addEventListener('click', () => run(false, 5));
 $('full').addEventListener('click', () => run(state.lastSlow, 0));
 $('cancel').addEventListener('click', () => { if (state.job && state.job.cancel) state.job.cancel(); });
-$('save').addEventListener('click', save);
-$('log-copy').addEventListener('click', () => { try { navigator.clipboard.writeText(logLines.join('\n')).then(() => { $('log-copy').textContent = '已复制'; }, () => {}); } catch (e) {} });
-$('again').addEventListener('click', () => { $('file').value = ''; reset(); $('fname').textContent = '还没选视频'; window.scrollTo(0, 0); });
+$('save').addEventListener('click', () => save(false));
+$('again').addEventListener('click', startOver);
+$('log-copy').addEventListener('click', () => {
+  try {
+    navigator.clipboard.writeText(logLines.join('\n')).then(() => { $('log-copy').textContent = '已复制'; }, () => {});
+  } catch (e) { /* clipboard unavailable */ }
+});

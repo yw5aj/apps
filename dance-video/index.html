@@ -5,70 +5,108 @@
 <script src="coi-serviceworker.min.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>舞社视频转换</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#eaf1f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#131a26" media="(prefers-color-scheme: dark)">
 <style>
-/* Layout: one narrow column of numbered steps, thumb-sized controls, studio-floor neutrals with a stage-light accent. */
+/* Layout: one left-aligned column that shows only the current stage. Colours are the
+   traditional names a Chinese-dance class would know: 月白 ground, 黛 ink, 胭脂 accent.
+   The one loud element is the progress, counted as an eight-count. */
+@font-face {
+  font-family: "XiaoWei";
+  src: url("fonts/xiaowei-subset.woff2") format("woff2");
+  font-display: swap;
+}
 :root {
-  --bg: #f3f1f4;
-  --surface: #ffffff;
-  --ink: #1d1a22;
-  --muted: #6a6472;
-  --line: #ddd8e1;
-  --accent: #c2274f;
-  --accent-ink: #ffffff;
-  --good: #1f7a4d;
-  --warn: #9a5b00;
-  --bad: #b3261e;
-  --font-body: system-ui, -apple-system, "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif;
-  --font-display: "Songti SC", "Noto Serif SC", "Source Han Serif SC", serif;
+  --yuebai: #eaf1f4;   /* 月白 page ground */
+  --paper: #fbfdfd;    /* raised surface */
+  --dai: #1f2a3c;      /* 黛 ink */
+  --muted: #5a687b;
+  --line: #c6d4db;
+  --yanzhi: #b1283a;   /* 胭脂 accent */
+  --on-yanzhi: #fff7f5;
+  --ouhe: #ecd3dc;     /* 藕荷 soft fill */
+  --bad: #9a2a12;
+  --font-display: "XiaoWei", "Noto Serif CJK SC", "Songti SC", serif;
+  --font-body: system-ui, -apple-system, "PingFang SC", "Noto Sans CJK SC", "Noto Sans SC", "Microsoft YaHei", sans-serif;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --bg: #151218; --surface: #211c26; --ink: #f1edf4; --muted: #a59dad; --line: #3a3341;
-    --accent: #f0668a; --accent-ink: #1a0a10; --good: #6fd3a0; --warn: #f0b860; --bad: #ff8a80;
+    --yuebai: #131a26; --paper: #1c2534; --dai: #e3eef2; --muted: #93a3b5; --line: #303d51;
+    --yanzhi: #ee6f81; --on-yanzhi: #1d0a0e; --ouhe: #3d2a3a; --bad: #ffa48f;
   }
-}
-:root[data-theme="dark"] {
-  color-scheme: dark;
-  --bg: #151218; --surface: #211c26; --ink: #f1edf4; --muted: #a59dad; --line: #3a3341;
-  --accent: #f0668a; --accent-ink: #1a0a10; --good: #6fd3a0; --warn: #f0b860; --bad: #ff8a80;
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; }
-body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 16px; line-height: 1.55; }
-main { max-width: 520px; margin: 0 auto; padding: 24px 16px 48px; display: flex; flex-direction: column; gap: 16px; }
-h1 { font-family: var(--font-display); font-size: 28px; line-height: 1.2; margin: 0; text-wrap: balance; }
-.lede { margin: 0; color: var(--muted); }
-section { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
-h2 { font-size: 17px; margin: 0; display: flex; gap: 10px; align-items: baseline; }
-h2 .n { font-family: var(--font-display); color: var(--accent); font-size: 20px; font-variant-numeric: tabular-nums; }
+body { background: var(--yuebai); color: var(--dai); font-family: var(--font-body); font-size: 17px; line-height: 1.6; }
+main { max-width: 480px; margin: 0 auto; padding: 28px 20px 40px; display: flex; flex-direction: column; gap: 28px; }
+h1 { font-family: var(--font-display); font-weight: 400; font-size: 40px; line-height: 1.15; letter-spacing: 0; margin: 0 0 8px; }
+h2 { font-family: var(--font-display); font-weight: 400; font-size: 26px; line-height: 1.2; letter-spacing: 0; margin: 0; }
 p { margin: 0; }
-.muted { color: var(--muted); font-size: 14px; overflow-wrap: anywhere; }
-.btn { display: flex; align-items: center; justify-content: center; min-height: 52px; padding: 0 18px; border-radius: 12px; border: 1px solid var(--accent); background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 600; cursor: pointer; text-align: center; }
-.btn.ghost { background: transparent; color: var(--accent); }
-.btn:focus-visible, select:focus-visible, .pick:focus-within { outline: 3px solid var(--ink); outline-offset: 2px; }
+.lede { color: var(--muted); max-width: 22em; }
+.stage { display: flex; flex-direction: column; gap: 18px; }
+.muted { color: var(--muted); font-size: 15px; overflow-wrap: anywhere; }
+
+.btn { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 60px; padding: 0 20px; border-radius: 30px; border: 0; background: var(--yanzhi); color: var(--on-yanzhi); font: inherit; font-size: 19px; font-weight: 600; letter-spacing: .02em; cursor: pointer; text-align: center; }
+.btn.quiet { min-height: 52px; background: transparent; color: var(--dai); border: 1.5px solid var(--line); font-size: 17px; font-weight: 500; }
+.link { background: none; border: 0; padding: 8px 0; font: inherit; font-size: 15px; color: var(--yanzhi); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.btn:focus-visible, .link:focus-visible, .pick:focus-within, .q input:focus-visible + span, select:focus-visible, summary:focus-visible { outline: 3px solid var(--dai); outline-offset: 3px; }
 .pick { position: relative; }
 .pick input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
-dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: 15px; }
+
+.how { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; color: var(--muted); font-size: 15px; counter-reset: how; }
+.how li { display: grid; grid-template-columns: 1.6em 1fr; align-items: baseline; counter-increment: how; }
+.how li::before { content: counter(how); font-family: var(--font-display); font-size: 20px; color: var(--yanzhi); }
+
+.file { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+.file .name { font-weight: 600; overflow-wrap: anywhere; }
+.file .link { flex: none; padding: 0; }
+.verdict { font-size: 17px; }
+.verdict.bad { color: var(--bad); }
+
+fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+legend { padding: 0; margin-bottom: 8px; font-size: 15px; color: var(--muted); }
+.qs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.q { position: relative; display: block; }
+.q input { position: absolute; opacity: 0; inset: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+.q span { display: flex; flex-direction: column; gap: 2px; align-items: flex-start; height: 100%; padding: 12px 12px 11px; border-radius: 14px; border: 1.5px solid var(--line); background: var(--paper); }
+.q b { font-weight: 600; font-size: 16px; }
+.q small { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.q input:checked + span { border-color: var(--yanzhi); background: var(--ouhe); }
+
+details { border-top: 1px solid var(--line); padding-top: 6px; }
+summary { cursor: pointer; color: var(--muted); font-size: 15px; min-height: 40px; display: flex; align-items: center; list-style: none; }
+summary::-webkit-details-marker { display: none; }
+summary::after { content: "展开"; margin-left: auto; font-size: 13px; }
+details[open] summary::after { content: "收起"; }
+.adv { display: flex; flex-direction: column; gap: 12px; padding-bottom: 6px; }
+dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; font-size: 14px; }
 dt { color: var(--muted); }
 dd { margin: 0; overflow-wrap: anywhere; }
-.verdict { border-left: 4px solid var(--line); padding: 8px 12px; border-radius: 4px; background: var(--bg); font-size: 15px; }
-.verdict.ok { border-color: var(--good); }
-.verdict.warn { border-color: var(--warn); }
-.verdict.bad { border-color: var(--bad); }
-select { width: 100%; min-height: 48px; font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 0 10px; }
-label { font-size: 14px; color: var(--muted); display: flex; flex-direction: column; gap: 6px; }
-.track { height: 10px; background: var(--bg); border-radius: 999px; overflow: hidden; border: 1px solid var(--line); }
-.bar { height: 100%; width: 0%; background: var(--accent); transition: width .15s linear; }
-@media (prefers-reduced-motion: reduce) { .bar { transition: none; } }
-.row { display: flex; gap: 12px; align-items: center; justify-content: space-between; }
-.pct { font-variant-numeric: tabular-nums; font-weight: 600; }
-video { width: 100%; max-height: 60vh; border-radius: 10px; background: #000; }
+label.field { font-size: 14px; color: var(--muted); display: flex; flex-direction: column; gap: 6px; }
+select { width: 100%; min-height: 48px; font: inherit; font-size: 15px; color: var(--dai); background: var(--paper); border: 1.5px solid var(--line); border-radius: 12px; padding: 0 10px; }
+pre#log { margin: 0; padding: 10px; max-height: 240px; overflow: auto; background: var(--paper); border: 1px solid var(--line); border-radius: 10px; font: 11px/1.45 ui-monospace, Menlo, Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+pre#log:empty::before { content: "重新编码画面时，这里会显示 ffmpeg 的输出。"; color: var(--muted); font-family: var(--font-body); font-size: 13px; }
+
+/* The eight-count */
+.pct { font-family: var(--font-display); font-size: 84px; line-height: 1; letter-spacing: .01em; font-variant-numeric: tabular-nums; }
+.pct small { font-size: 34px; margin-left: 4px; color: var(--muted); }
+.beats { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; }
+.beat { display: flex; flex-direction: column; gap: 6px; align-items: center; font-family: var(--font-display); font-size: 18px; color: var(--muted); }
+.beat i { display: block; width: 100%; height: 14px; border-radius: 7px; background: var(--ouhe); overflow: hidden; }
+.beat i::before { content: ""; display: block; height: 100%; width: calc(var(--f, 0) * 100%); background: var(--yanzhi); }
+.beat.on { color: var(--yanzhi); }
+.beat.now i { animation: beat 1s ease-in-out infinite; }
+@keyframes beat { 50% { transform: scaleY(1.5); } }
+@media (prefers-reduced-motion: reduce) { .beat.now i { animation: none; } }
+
+video { width: 100%; max-height: 62vh; border-radius: 14px; background: #000; }
 .error { color: var(--bad); font-size: 15px; overflow-wrap: anywhere; }
-ol.how { margin: 0; padding-left: 1.3em; color: var(--muted); font-size: 14px; display: flex; flex-direction: column; gap: 4px; }
-details summary { cursor: pointer; color: var(--muted); font-size: 14px; min-height: 36px; }
-pre#log { margin: 8px 0; padding: 10px; max-height: 260px; overflow: auto; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; font: 11px/1.45 ui-monospace, Menlo, Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
-.ver { color: var(--muted); font-size: 12px; text-align: center; }
+.row { display: flex; gap: 18px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.ver { color: var(--muted); font-size: 12px; }
 [hidden] { display: none !important; }
 </style>
 </head>
@@ -76,72 +114,87 @@ pre#log { margin: 8px 0; padding: 10px; max-height: 260px; overflow: auto; backg
 <main>
   <header>
     <h1>舞社视频转换</h1>
-    <p class="lede">舞社的视频在手机相册里放不了？在这里转一下。视频不会上传，全程在手机里处理。</p>
+    <p class="lede">舞社的视频在手机上放不了？在这里转成能放的 MP4。视频不会上传，全程在手机里处理。</p>
   </header>
 
-  <section>
-    <h2><span class="n">1</span>选视频</h2>
+  <section class="stage" id="step-pick">
     <div class="pick btn">
       选一个舞社下载的视频
       <input type="file" id="file" accept="video/*,.mov,.mp4" aria-label="选一个舞社下载的视频">
     </div>
-    <p class="muted" id="fname">还没选视频</p>
     <ol class="how">
-      <li>先在舞社网站把 MOV 下载到手机。</li>
-      <li>回到这里选它，转换一条通常要几分钟。</li>
-      <li>转完会自动存到手机的“下载”，再添加到 Google Photos。</li>
+      <li>先在舞社网站把视频下载到手机。</li>
+      <li>在这里选它，点“转换并保存”。</li>
+      <li>转好的 MP4 会自动存进手机的“下载”。</li>
     </ol>
   </section>
 
-  <section id="step-info" hidden>
-    <h2><span class="n">2</span>检查并转换</h2>
-    <dl>
-      <dt>画面</dt><dd id="v-info">…</dd>
-      <dt>声音</dt><dd id="a-info">…</dd>
-    </dl>
-    <p class="verdict wait" id="verdict"></p>
-    <label id="audio-pick" hidden>这个视频有多条声音轨。转完没声音就换一条再试。
-      <select id="audio-sel"></select>
-    </label>
-    <label id="quality-pick" hidden>画质。大小是按这条视频的时长估的，动作越多越大。
-      <select id="quality">
-        <option value="high" selected>高画质 · 1080p</option>
-        <option value="std">标准 · 1080p</option>
-        <option value="small">小文件 · 720p</option>
-      </select>
-    </label>
-    <button class="btn" id="go" type="button" hidden>转换并保存</button>
-    <div id="step-run" hidden>
-      <div class="row"><span id="run-label">正在转换，请别离开这个页面</span><span class="pct" id="pct">0%</span></div>
-      <div class="track"><div class="bar" id="bar"></div></div>
-      <p class="muted" id="run-stats" style="margin-top:8px"></p>
-      <p><button class="btn ghost" id="cancel" type="button" style="margin-top:12px;width:100%">取消</button></p>
+  <section class="stage" id="step-info" hidden>
+    <div class="file">
+      <span class="name" id="fname"></span>
+      <button class="link" id="change" type="button">换一个</button>
+    </div>
+    <p class="verdict" id="verdict"></p>
+    <div class="stage" id="ready" hidden>
+      <fieldset id="quality-pick" hidden>
+        <legend>画质。大小是按这条视频的时长估的，动作越多越大。</legend>
+        <div class="qs" id="quality">
+          <label class="q"><input type="radio" name="quality" id="q-high" value="high" checked><span><b>高画质</b><small id="est-high">1080p</small></span></label>
+          <label class="q"><input type="radio" name="quality" id="q-std" value="std"><span><b>标准</b><small id="est-std">1080p</small></span></label>
+          <label class="q"><input type="radio" name="quality" id="q-small" value="small"><span><b>小文件</b><small id="est-small">720p</small></span></label>
+        </div>
+      </fieldset>
+      <button class="btn" id="go" type="button">转换并保存</button>
+      <details id="log-box">
+        <summary>高级</summary>
+        <div class="adv">
+          <dl>
+            <dt>画面</dt><dd id="v-info"></dd>
+            <dt>声音</dt><dd id="a-info"></dd>
+          </dl>
+          <label class="field" id="audio-pick" hidden>这个视频有多条声音轨。转完没声音就换一条再试。
+            <select id="audio-sel"></select>
+          </label>
+          <button class="btn quiet" id="try" type="button">先试转前 5 秒</button>
+          <pre id="log"></pre>
+          <button class="btn quiet" id="log-copy" type="button">复制日志</button>
+        </div>
+      </details>
     </div>
     <p class="error" id="error" hidden></p>
-    <details id="log-box">
-      <summary>高级</summary>
-      <div style="display:flex;flex-direction:column;gap:10px">
-        <button class="btn ghost" id="try" type="button" hidden>先试转前 5 秒</button>
-        <p class="muted">ffmpeg 日志（重新编码画面时才有）</p>
-        <pre id="log"></pre>
-        <button class="btn ghost" id="log-copy" type="button">复制日志</button>
-      </div>
-    </details>
   </section>
 
-  <section id="step-done" hidden>
-    <h2><span class="n">3</span><span id="done-title">试听并保存</span></h2>
-    <video id="preview" controls playsinline preload="metadata"></video>
-    <p class="muted" id="out-info"></p>
-    <button class="btn" id="full" type="button" hidden>画面和声音都正常，转换整条并保存</button>
-    <button class="btn" id="save" type="button">再保存一次</button>
-    <p class="muted" id="save-note"></p>
-    <button class="btn ghost" id="redo" type="button" hidden>画面是黑的？把画面也重新转一遍（慢）</button>
-    <button class="btn ghost" id="again" type="button">再转一个</button>
+  <section class="stage" id="step-run" hidden>
+    <p class="pct" id="pct" aria-live="off">0<small>%</small></p>
+    <div class="beats" id="beats" aria-hidden="true">
+      <span class="beat"><i></i>1</span><span class="beat"><i></i>2</span><span class="beat"><i></i>3</span><span class="beat"><i></i>4</span>
+      <span class="beat"><i></i>5</span><span class="beat"><i></i>6</span><span class="beat"><i></i>7</span><span class="beat"><i></i>8</span>
+    </div>
+    <div>
+      <p id="run-label">正在转换</p>
+      <p class="muted" id="run-stats"></p>
+    </div>
+    <button class="btn quiet" id="cancel" type="button">取消</button>
   </section>
-  <p class="ver">版本 8</p>
+
+  <section class="stage" id="step-done" hidden>
+    <h2 id="done-title">转好了</h2>
+    <video id="preview" controls playsinline preload="metadata"></video>
+    <div>
+      <p id="save-note"></p>
+      <p class="muted" id="out-info"></p>
+    </div>
+    <button class="btn" id="full" type="button" hidden>画面和声音都正常，转换整条并保存</button>
+    <button class="btn" id="again" type="button">再转一个</button>
+    <div class="row">
+      <button class="link" id="save" type="button">再保存一次</button>
+      <button class="link" id="redo" type="button" hidden>画面是黑的？把画面也重新转一遍</button>
+    </div>
+  </section>
+
+  <p class="ver">版本 9</p>
 </main>
 <script src="vendor/ffmpeg/ffmpeg.js"></script>
-<script src="app.js?v=8"></script>
+<script src="app.js?v=9"></script>
 </body>
 </html>

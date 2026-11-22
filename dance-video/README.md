@@ -16,3 +16,8 @@ npx esbuild src/app.js --bundle --format=iife --minify --target=es2020 --outfile
 ```
 
 `vendor/` 来自 `@ffmpeg/ffmpeg@0.12.15`、`@ffmpeg/core@0.12.10`、`@ffmpeg/core-mt@0.12.10` 的 `dist/umd`。
+
+## 外观
+
+- 颜色用的是中国传统色名：月白（底）、黛（字）、胭脂（强调）、藕荷（浅填充），定义在 `index.html` 顶部的 `:root`。
+- 标题字体是站酷小薇，`fonts/xiaowei-subset.woff2` 只含页面用到的字。标题或进度里出现新的字时要重新做子集，否则那个字会退回系统宋体。
