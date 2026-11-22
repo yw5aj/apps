@@ -112,14 +112,16 @@ export async function transcode(file, opts) {
   await ff.mount('WORKERFS', { files: [new File([file], 'input.mov')] }, '/in');
   log('[app] 输入文件已挂载，开始转码');
   if (onStage) onStage('encode');
-  const scale = "scale=w='if(gte(iw,ih),min(1920,iw),-2)':h='if(gte(iw,ih),-2,min(1920,ih))'";
+  const side = opts.maxSide || 1920, crf = String(opts.crf || 23);
+  const scale = "scale=w='if(gte(iw,ih),min(" + side + ",iw),-2)':h='if(gte(iw,ih),-2,min(" + side + ",ih))'";
+  log('[app] 画质：长边 ' + side + '，CRF ' + crf);
   const q = new URLSearchParams(location.search).get('threads');
   const threads = String(q ? Math.max(1, +q || 1) : Math.max(1, Math.min(4, navigator.hardwareConcurrency || 2)));
   opts.threads = threads;
   log('[app] 线程数 ' + threads);
   const code = await ff.exec([
     ...(mt ? ['-threads', threads] : []), '-i', '/in/input.mov', '-map', '0:v:0', '-map', '0:a:' + (opts.audioIndex || 0) + '?',
-    '-vf', scale, '-c:v', 'libx264', ...(mt ? ['-threads', threads] : []), '-preset', 'ultrafast', '-crf', '23', '-pix_fmt', 'yuv420p',
+    '-vf', scale, '-c:v', 'libx264', ...(mt ? ['-threads', threads] : []), '-preset', 'ultrafast', '-crf', crf, '-pix_fmt', 'yuv420p',
     '-c:a', 'aac', '-b:a', '192k', '-ac', '2', '-map_metadata', '0', '-write_tmcd', '0', '-movflags', '+faststart',
     ...(opts.limit ? ['-t', String(opts.limit)] : []),
     'out.mp4',

@@ -35,7 +35,7 @@ async function onFile(file) {
   show('step-info', true);
   setStatus('wait', '正在读取视频信息…');
   $('v-info').textContent = '…'; $('a-info').textContent = '…';
-  show('audio-pick', false); show('go', false); show('try', false);
+  show('audio-pick', false); show('go', false); show('try', false); show('quality-pick', false);
   let info;
   try { info = await inspect(file); }
   catch (e) {
@@ -70,6 +70,8 @@ async function onFile(file) {
     setStatus('bad', '这台手机放不了这种画面，这个页面也没法重新编码画面。');
     return;
   }
+  show('quality-pick', state.slow);
+  labelQuality(info.duration);
   if (state.slow) {
     setStatus('warn', '这台手机放不了这种画面。需要把画面和声音都重新转一遍，大约要几分钟。转换时可以切去别的 App，别关掉这个页面。');
   } else if (a.codec === 'aac' && a.channels <= 2) {
@@ -80,6 +82,21 @@ async function onFile(file) {
   show('go', true); show('try', true);
 }
 
+// mbPerSec was measured on one real studio clip; other clips will differ with how much motion they have.
+const QUALITY = {
+  small: { maxSide: 1280, crf: 24, mbPerSec: 0.37, label: '小文件 · 720p' },
+  std: { maxSide: 1920, crf: 23, mbPerSec: 0.8, label: '标准 · 1080p' },
+  high: { maxSide: 1920, crf: 18, mbPerSec: 1.8, label: '高画质 · 1080p' },
+};
+function labelQuality(duration) {
+  for (const o of $('quality').options) {
+    const q = QUALITY[o.value];
+    const est = duration ? Math.max(1, Math.round(q.mbPerSec * duration / 5) * 5) : 0;
+    o.textContent = q.label + (est ? ' · 这条约 ' + est + ' MB' : '');
+  }
+}
+try { const q = localStorage.getItem('dv-quality'); if (q && QUALITY[q]) $('quality').value = q; } catch (e) {}
+$('quality').addEventListener('change', (e) => { try { localStorage.setItem('dv-quality', e.target.value); } catch (err) {} });
 const logLines = [];
 async function run(forceSlow, limit) {
   logLines.length = 0; $('log').textContent = '';
@@ -93,6 +110,7 @@ async function run(forceSlow, limit) {
   const audioIndex = Math.max(0, state.info.audio.findIndex((a) => a.id === state.audioId));
   const job = {
     audioTrackId: state.audioId, audioIndex, duration: state.info.duration, limit: state.limit,
+    ...QUALITY[$('quality').value || 'high'],
     onProgress: (p) => {
       const n = Math.round(p * 100);
       $('bar').style.width = n + '%'; $('pct').textContent = n + '%';
