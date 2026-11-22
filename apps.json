@@ -1,4 +1,4 @@
 [
-  { "path": "dance-video", "name": "舞社视频转换", "desc": "把舞社的视频转成手机能放的 MP4", "emoji": "💃", "icon": "dance-video/icon.svg",
+  { "path": "dance-video", "name": "EDS视频转换", "desc": "把舞社的视频转成手机能放的 MP4", "emoji": "💃", "icon": "dance-video/icon.svg",
     "apk": "https://github.com/yw5aj/apps/releases/download/dance-video-apk/dance-video.apk" }
 ]

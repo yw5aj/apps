@@ -1,4 +1,4 @@
-# 舞社视频转换
+# EDS视频转换
 
 把 Enjoy Dance Studio 的 MOV（H.265 10-bit 4:2:2 + PCM 声音）在手机浏览器里转成相册能放的 MP4。视频不上传。
 

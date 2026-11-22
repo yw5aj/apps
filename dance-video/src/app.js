@@ -338,7 +338,7 @@ function keepAliveStart() {
     }
     const p = keepAudio.play(); if (p && p.catch) p.catch(() => {});
     if (navigator.mediaSession && window.MediaMetadata) {
-      navigator.mediaSession.metadata = new MediaMetadata({ title: '正在转换视频', artist: '舞社视频转换' });
+      navigator.mediaSession.metadata = new MediaMetadata({ title: '正在转换视频', artist: 'EDS视频转换' });
     }
   } catch (e) { /* conversion still works in the foreground */ }
 }

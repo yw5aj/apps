@@ -1,6 +1,6 @@
 {
-  "name": "舞社视频转换",
-  "short_name": "舞社视频",
+  "name": "EDS视频转换",
+  "short_name": "EDS视频",
   "description": "把舞社的视频转成手机能放的 MP4",
   "start_url": "./",
   "scope": "./",
