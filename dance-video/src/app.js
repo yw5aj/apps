@@ -71,7 +71,7 @@ async function onFile(file) {
     return;
   }
   if (state.slow) {
-    setStatus('warn', '这台手机放不了这种画面。需要把画面和声音都重新转一遍，大约要几分钟，请保持屏幕亮着。');
+    setStatus('warn', '这台手机放不了这种画面。需要把画面和声音都重新转一遍，大约要几分钟。转换时可以切去别的 App，别关掉这个页面。');
   } else if (a.codec === 'aac' && a.channels <= 2) {
     setStatus('warn', '声音已经是 AAC，按理能播。可以转一次试试，没变化的话问题在别处。');
   } else {
@@ -96,10 +96,11 @@ async function run(forceSlow, limit) {
       $('bar').style.width = n + '%'; $('pct').textContent = n + '%';
     },
     onStage: (st) => {
-      $('run-label').textContent = st === 'load' ? '正在加载转换组件（第一次要下载约 30 MB）…' : '正在重新编码画面，请保持屏幕亮着';
+      $('run-label').textContent = st === 'load' ? '正在加载转换组件（第一次要下载约 30 MB）…' : '正在重新编码画面。可以切去别的 App，别关掉这个页面';
     },
   };
   state.job = job;
+  if (slow) keepAliveStart();
   let lock = null;
   try { if (slow && navigator.wakeLock) lock = await navigator.wakeLock.request('screen'); } catch (e) { lock = null; }
   const t0 = performance.now();
@@ -135,9 +136,33 @@ async function run(forceSlow, limit) {
         '。如果是手机内存不够，关掉别的 App 再试一次。');
     }
   } finally {
+    keepAliveStop();
     try { if (lock) await lock.release(); } catch (e) {}
   }
 }
+
+// Keep the tab alive in the background: Android keeps a page running while it plays audio.
+// A 20 Hz tone at very low volume is inaudible on phone speakers.
+let keepAudio = null;
+function keepAliveStart() {
+  try {
+    if (!keepAudio) {
+      const rate = 8000, n = rate * 10, buf = new ArrayBuffer(44 + n * 2), v = new DataView(buf);
+      const w = (o, t) => { for (let i = 0; i < t.length; i++) v.setUint8(o + i, t.charCodeAt(i)); };
+      w(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); w(8, 'WAVEfmt '); v.setUint32(16, 16, true);
+      v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, rate, true); v.setUint32(28, rate * 2, true);
+      v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, 'data'); v.setUint32(40, n * 2, true);
+      for (let i = 0; i < n; i++) v.setInt16(44 + i * 2, Math.round(Math.sin(2 * Math.PI * 20 * i / rate) * 600), true);
+      keepAudio = new Audio(URL.createObjectURL(new Blob([buf], { type: 'audio/wav' })));
+      keepAudio.loop = true;
+    }
+    const p = keepAudio.play(); if (p && p.catch) p.catch(() => {});
+    if (navigator.mediaSession && window.MediaMetadata) {
+      navigator.mediaSession.metadata = new MediaMetadata({ title: '正在转换视频', artist: '舞社视频转换' });
+    }
+  } catch (e) {}
+}
+function keepAliveStop() { try { if (keepAudio) keepAudio.pause(); } catch (e) {} }
 
 function outName() {
   const base = (state.file ? state.file.name : 'video').replace(/\.[^.]+$/, '');
