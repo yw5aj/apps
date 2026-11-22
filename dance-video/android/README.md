@@ -8,10 +8,10 @@
 
 ## 下载
 
-https://github.com/yw5aj/apps/releases/latest/download/dance-video.apk
+https://github.com/yw5aj/apps/releases/download/dance-video-apk/dance-video.apk
 
 ## 打包和测试
 
-全在 GitHub Actions 里（`.github/workflows/dance-video-android.yml`）：编译 ffmpeg → 打包 APK → 在 Android 模拟器里用 4K 4:2:2 样本跑试转、整条转换（中途切到后台）和快速模式 → 发布 Release。
+全在 GitHub Actions 里（`.github/workflows/dance-video-android.yml`）：编译 ffmpeg → 打包 APK → 在 Android 模拟器里用 4K 4:2:2 样本跑试转、整条转换（中途切到后台）和快速模式 → 发布到固定的 Release（标签 `dance-video-apk`），下载链接不变。
 
 签名密钥不放在仓库里。仓库的 Actions secret `DANCE_VIDEO_KEYSTORE`（.jks 文件的 base64）存在时用它签名，这样新版本能直接覆盖安装；没有时每次临时生成一把，新版本要先卸载旧版。

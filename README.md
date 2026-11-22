@@ -17,3 +17,12 @@
 ```
 
 `desc` 和 `emoji` 可以不写。
+
+## Android 版（APK）
+
+有的 app 还有 APK，比如 `dance-video/android/`。每个 APK app：
+
+- 代码放在它自己的目录里，比如 `<目录名>/android/`。
+- 有自己的打包流程 `.github/workflows/<目录名>-android.yml`，只在它的目录有改动时运行，在模拟器里测过才发布。
+- 发布到一个固定的 Release（标签 `<目录名>-apk`），下载地址永远是 `https://github.com/yw5aj/apps/releases/download/<目录名>-apk/<目录名>.apk`。
+- 在 `apps.json` 那一条里加 `"apk": "<下载地址>"`，首页会多一个“下载安卓版”链接。只有 APK、没有网页版的话再加 `"web": false`。

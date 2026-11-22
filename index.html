@@ -45,6 +45,8 @@ a.app:focus-visible { outline: 3px solid var(--dai); outline-offset: 4px; border
 .desc { color: var(--muted); font-size: 15px; }
 @media (hover: hover) { a.app:hover .name { text-decoration: underline; text-underline-offset: 4px; } }
 #empty { color: var(--muted); padding: 18px 0; }
+a.apk { display: inline-flex; align-items: center; min-height: 44px; margin: -10px 0 8px 80px; color: var(--yanzhi); font-size: 15px; text-decoration: underline; text-underline-offset: 3px; }
+a.apk:focus-visible { outline: 3px solid var(--dai); outline-offset: 3px; border-radius: 6px; }
 </style>
 </head>
 <body>
@@ -69,7 +71,8 @@ a.app:focus-visible { outline: 3px solid var(--dai); outline-offset: 4px; border
         const li = document.createElement('li');
         const a = document.createElement('a');
         a.className = 'app';
-        a.href = encodeURIComponent(app.path) + '/';
+        // "web": false means the app only exists as an Android APK.
+        a.href = app.web === false && app.apk ? app.apk : encodeURIComponent(app.path) + '/';
         const icon = document.createElement('span');
         icon.className = 'icon';
         if (app.icon) {
@@ -90,7 +93,14 @@ a.app:focus-visible { outline: 3px solid var(--dai); outline-offset: 4px; border
           text.appendChild(desc);
         }
         a.appendChild(icon); a.appendChild(text);
-        li.appendChild(a); list.appendChild(li);
+        li.appendChild(a);
+        if (app.apk && app.web !== false) {
+          const apk = document.createElement('a');
+          apk.className = 'apk'; apk.href = app.apk;
+          apk.textContent = '下载安卓版（转换时可以切走）';
+          li.appendChild(apk);
+        }
+        list.appendChild(li);
       }
     });
 </script>

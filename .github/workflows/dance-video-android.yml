@@ -112,9 +112,16 @@ jobs:
         if: github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
+        # One fixed release per app, so each APK keeps its own stable download link:
+        # https://github.com/yw5aj/apps/releases/download/dance-video-apk/dance-video.apk
         run: |
           cp app/build/outputs/apk/release/app-release.apk dance-video.apk
-          gh release create "dance-video-android-${{ github.run_number }}" dance-video.apk \
-            --title "舞社视频转换 Android 版 #${{ github.run_number }}" \
-            --notes "在手机上下载 dance-video.apk 安装。之后的版本可以直接覆盖安装。" \
-            --latest
+          TAG=dance-video-apk
+          TITLE="舞社视频转换 Android 版（第 ${{ github.run_number }} 版）"
+          NOTES="在手机上下载 dance-video.apk 安装。构建于 $(date -u +%Y-%m-%d)，提交 ${GITHUB_SHA::7}。"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" dance-video.apk --clobber
+            gh release edit "$TAG" --title "$TITLE" --notes "$NOTES"
+          else
+            gh release create "$TAG" dance-video.apk --title "$TITLE" --notes "$NOTES" --latest=false --target "$GITHUB_SHA"
+          fi
