@@ -232,6 +232,7 @@ class ConvertService : Service() {
         )
         return Notification.Builder(this, CH_PROGRESS)
             .setSmallIcon(R.drawable.ic_stat)
+            .setColor(0xFFB1283A.toInt())
             .setContentTitle(if (Job.trial) "正在试转前 5 秒" else "正在转换视频")
             .setContentText(text)
             .setProgress(100, pct, pct == 0)
@@ -245,6 +246,7 @@ class ConvertService : Service() {
     private fun notifyDone(title: String, text: String) {
         val n = Notification.Builder(this, CH_DONE)
             .setSmallIcon(R.drawable.ic_stat)
+            .setColor(0xFFB1283A.toInt())
             .setContentTitle(title)
             .setContentText(text)
             .setAutoCancel(true)

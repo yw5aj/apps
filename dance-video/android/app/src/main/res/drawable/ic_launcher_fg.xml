@@ -1,15 +1,32 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- A film frame with a play triangle and a small music note, inside the 66dp safe zone. -->
+<!-- The web version's icon (dance/icon.svg): an open fan, scaled into the adaptive-icon safe zone. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
-    android:viewportWidth="108"
-    android:viewportHeight="108">
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M34,36h40a6,6 0,0 1,6 6v24a6,6 0,0 1,-6 6h-40a6,6 0,0 1,-6 -6v-24a6,6 0,0 1,6 -6z M34,41a1,1 0,0 0,-1 1v24a1,1 0,0 0,1 1h40a1,1 0,0 0,1 -1v-24a1,1 0,0 0,-1 -1z"
-        android:fillType="evenOdd" />
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M47,46.5L60,54L47,61.5Z" />
+    android:viewportWidth="512"
+    android:viewportHeight="512">
+    <group
+        android:pivotX="256"
+        android:pivotY="256"
+        android:scaleX="0.74"
+        android:scaleY="0.74"
+        android:translateY="-12">
+        <path
+            android:fillColor="#EAF1F4"
+            android:pathData="M197.0,336.8 L69.6,295.4 A196,196 0,0 1,442.4 295.4 L315.0,336.8 A62,62 0,0 0,197.0 336.8 Z" />
+        <path
+            android:pathData="M101.9,305.9 A162,162 0,0 1,410.1 305.9"
+            android:strokeColor="#ECD3DC"
+            android:strokeWidth="20" />
+        <path android:pathData="M210.7,323.1 L92.6,237.3" android:strokeColor="#B1283A" android:strokeWidth="7" android:strokeLineCap="round" />
+        <path android:pathData="M223.1,310.7 L137.3,192.6" android:strokeColor="#B1283A" android:strokeWidth="7" android:strokeLineCap="round" />
+        <path android:pathData="M238.7,302.7 L193.6,163.9" android:strokeColor="#B1283A" android:strokeWidth="7" android:strokeLineCap="round" />
+        <path android:pathData="M256.0,300.0 L256.0,154.0" android:strokeColor="#B1283A" android:strokeWidth="7" android:strokeLineCap="round" />
+        <path android:pathData="M273.3,302.7 L318.4,163.9" android:strokeColor="#B1283A" android:strokeWidth="7" android:strokeLineCap="round" />
+        <path android:pathData="M288.9,310.7 L374.7,192.6" android:strokeColor="#B1283A" android:strokeWidth="7" android:strokeLineCap="round" />
+        <path android:pathData="M301.3,323.1 L419.4,237.3" android:strokeColor="#B1283A" android:strokeWidth="7" android:strokeLineCap="round" />
+        <path
+            android:fillColor="#EAF1F4"
+            android:pathData="M256,356 m-20,0 a20,20 0 1,0 40,0 a20,20 0 1,0 -40,0" />
+    </group>
 </vector>
