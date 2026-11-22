@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<script src="coi-serviceworker.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>舞社视频转换</title>
+<style>
+/* Layout: one narrow column of numbered steps, thumb-sized controls, studio-floor neutrals with a stage-light accent. */
+:root {
+  --bg: #f3f1f4;
+  --surface: #ffffff;
+  --ink: #1d1a22;
+  --muted: #6a6472;
+  --line: #ddd8e1;
+  --accent: #c2274f;
+  --accent-ink: #ffffff;
+  --good: #1f7a4d;
+  --warn: #9a5b00;
+  --bad: #b3261e;
+  --font-body: system-ui, -apple-system, "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+  --font-display: "Songti SC", "Noto Serif SC", "Source Han Serif SC", serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #151218; --surface: #211c26; --ink: #f1edf4; --muted: #a59dad; --line: #3a3341;
+    --accent: #f0668a; --accent-ink: #1a0a10; --good: #6fd3a0; --warn: #f0b860; --bad: #ff8a80;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #151218; --surface: #211c26; --ink: #f1edf4; --muted: #a59dad; --line: #3a3341;
+  --accent: #f0668a; --accent-ink: #1a0a10; --good: #6fd3a0; --warn: #f0b860; --bad: #ff8a80;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 16px; line-height: 1.55; }
+main { max-width: 520px; margin: 0 auto; padding: 24px 16px 48px; display: flex; flex-direction: column; gap: 16px; }
+h1 { font-family: var(--font-display); font-size: 28px; line-height: 1.2; margin: 0; text-wrap: balance; }
+.lede { margin: 0; color: var(--muted); }
+section { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+h2 { font-size: 17px; margin: 0; display: flex; gap: 10px; align-items: baseline; }
+h2 .n { font-family: var(--font-display); color: var(--accent); font-size: 20px; font-variant-numeric: tabular-nums; }
+p { margin: 0; }
+.muted { color: var(--muted); font-size: 14px; overflow-wrap: anywhere; }
+.btn { display: flex; align-items: center; justify-content: center; min-height: 52px; padding: 0 18px; border-radius: 12px; border: 1px solid var(--accent); background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 600; cursor: pointer; text-align: center; }
+.btn.ghost { background: transparent; color: var(--accent); }
+.btn:focus-visible, select:focus-visible, .pick:focus-within { outline: 3px solid var(--ink); outline-offset: 2px; }
+.pick { position: relative; }
+.pick input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: 15px; }
+dt { color: var(--muted); }
+dd { margin: 0; overflow-wrap: anywhere; }
+.verdict { border-left: 4px solid var(--line); padding: 8px 12px; border-radius: 4px; background: var(--bg); font-size: 15px; }
+.verdict.ok { border-color: var(--good); }
+.verdict.warn { border-color: var(--warn); }
+.verdict.bad { border-color: var(--bad); }
+select { width: 100%; min-height: 48px; font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 0 10px; }
+label { font-size: 14px; color: var(--muted); display: flex; flex-direction: column; gap: 6px; }
+.track { height: 10px; background: var(--bg); border-radius: 999px; overflow: hidden; border: 1px solid var(--line); }
+.bar { height: 100%; width: 0%; background: var(--accent); transition: width .15s linear; }
+@media (prefers-reduced-motion: reduce) { .bar { transition: none; } }
+.row { display: flex; gap: 12px; align-items: center; justify-content: space-between; }
+.pct { font-variant-numeric: tabular-nums; font-weight: 600; }
+video { width: 100%; max-height: 60vh; border-radius: 10px; background: #000; }
+.error { color: var(--bad); font-size: 15px; overflow-wrap: anywhere; }
+ol.how { margin: 0; padding-left: 1.3em; color: var(--muted); font-size: 14px; display: flex; flex-direction: column; gap: 4px; }
+[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>舞社视频转换</h1>
+    <p class="lede">舞社的视频在手机相册里放不了？在这里转一下。视频不会上传，全程在手机里处理。</p>
+  </header>
+
+  <section>
+    <h2><span class="n">1</span>选视频</h2>
+    <div class="pick btn">
+      选一个舞社下载的视频
+      <input type="file" id="file" accept="video/*,.mov,.mp4" aria-label="选一个舞社下载的视频">
+    </div>
+    <p class="muted" id="fname">还没选视频</p>
+    <ol class="how">
+      <li>先在舞社网站把 MOV 下载到手机。</li>
+      <li>回到这里选它，转换一条通常要几分钟。</li>
+      <li>保存新的 MP4，再添加到 Google Photos。</li>
+    </ol>
+  </section>
+
+  <section id="step-info" hidden>
+    <h2><span class="n">2</span>检查并转换</h2>
+    <dl>
+      <dt>画面</dt><dd id="v-info">…</dd>
+      <dt>声音</dt><dd id="a-info">…</dd>
+    </dl>
+    <p class="verdict wait" id="verdict"></p>
+    <label id="audio-pick" hidden>这个视频有多条声音轨。转完没声音就换一条再试。
+      <select id="audio-sel"></select>
+    </label>
+    <button class="btn" id="go" type="button" hidden>开始转换</button>
+    <div id="step-run" hidden>
+      <div class="row"><span id="run-label">正在转换，请别离开这个页面</span><span class="pct" id="pct">0%</span></div>
+      <div class="track"><div class="bar" id="bar"></div></div>
+      <p><button class="btn ghost" id="cancel" type="button" style="margin-top:12px;width:100%">取消</button></p>
+    </div>
+    <p class="error" id="error" hidden></p>
+  </section>
+
+  <section id="step-done" hidden>
+    <h2><span class="n">3</span>试听并保存</h2>
+    <video id="preview" controls playsinline preload="metadata"></video>
+    <p class="muted" id="out-info"></p>
+    <button class="btn" id="save" type="button">保存 MP4 到手机</button>
+    <p class="muted" id="save-note"></p>
+    <button class="btn ghost" id="redo" type="button" hidden>画面是黑的？把画面也重新转一遍（慢）</button>
+    <button class="btn ghost" id="again" type="button">再转一个</button>
+  </section>
+</main>
+<script src="vendor/ffmpeg/ffmpeg.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
