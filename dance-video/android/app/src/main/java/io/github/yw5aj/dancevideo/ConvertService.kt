@@ -204,8 +204,21 @@ class ConvertService : Service() {
         errThread.join(2000)
         proc = null
         val tail = synchronized(lines) { lines.joinToString("\n") }
-        val why = stalled.get()
+        Log.i(TAG, "ffmpeg exit $code ($enc):\n$tail")
+        var why = stalled.get()
         if (why.isNotEmpty()) Log.w(TAG, "watchdog: $why")
+        // An encoder can exit cleanly yet write no picture (seen with MediaCodec on the
+        // emulator), so check the result has a video track of about the right length.
+        if (why.isEmpty() && code == 0 && out.length() > 0) {
+            val got = try { Ff.probe(this, out) } catch (e: Exception) { null }
+            why = when {
+                got == null -> "读不了转出来的文件"
+                got.vCodec == null -> "转出来的文件没有画面"
+                total > 0 && got.durationSec < total * 0.9 - 0.5 -> "转出来的文件只有 ${fmtTime(got.durationSec)}"
+                else -> ""
+            }
+            if (why.isNotEmpty()) Log.w(TAG, "output check failed ($enc): $why")
+        }
         val head = if (why.isNotEmpty()) "已停止：$why\n" else ""
         return (code == 0 && out.length() > 0 && why.isEmpty()) to "${head}退出码 $code\n$tail"
     }

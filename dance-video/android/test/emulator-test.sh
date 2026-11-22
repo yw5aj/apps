@@ -30,6 +30,7 @@ run() {
   local name=$1 file=$2 start=$3 enc=$4 preset=$5 bg=$6 vcodec=$7 width=$8 dur=$9 fatal=${10}
   echo "::group::$name"
   adb shell am force-stop $PKG 2>/dev/null
+  adb shell rm -rf "/sdcard/Movies/舞社视频"
   adb logcat -c
   local extra=()
   [ -n "$enc" ] && extra=(--es test_encoder "$enc")
@@ -60,7 +61,7 @@ run() {
   [ -z "$line" ] && line="TIMEOUT after 900s"
   local secs=$(( $(date +%s) - t0 ))
   echo "result after ${secs}s: $line"
-  adb logcat -d -v brief -s DanceVideo:V | grep -v "^--------" | tail -45
+  adb logcat -d -v brief -s DanceVideo:V | grep -v "^--------" | grep -v "probe:" | tail -80
   local ok=0 detail=""
   if [[ "$line" == *"DVTEST DONE"* ]]; then
     local path=${line##*path=}
