@@ -120,7 +120,7 @@ export async function transcode(file, opts) {
   const code = await ff.exec([
     ...(mt ? ['-threads', threads] : []), '-i', '/in/input.mov', '-map', '0:v:0', '-map', '0:a:' + (opts.audioIndex || 0) + '?',
     '-vf', scale, '-c:v', 'libx264', ...(mt ? ['-threads', threads] : []), '-preset', 'ultrafast', '-crf', '23', '-pix_fmt', 'yuv420p',
-    '-c:a', 'aac', '-b:a', '192k', '-ac', '2', '-map_metadata', '0', '-movflags', '+faststart',
+    '-c:a', 'aac', '-b:a', '192k', '-ac', '2', '-map_metadata', '0', '-write_tmcd', '0', '-movflags', '+faststart',
     ...(opts.limit ? ['-t', String(opts.limit)] : []),
     'out.mp4',
   ]);
