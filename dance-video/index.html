@@ -89,7 +89,7 @@ pre#log { margin: 8px 0; padding: 10px; max-height: 260px; overflow: auto; backg
     <ol class="how">
       <li>先在舞社网站把 MOV 下载到手机。</li>
       <li>回到这里选它，转换一条通常要几分钟。</li>
-      <li>保存新的 MP4，再添加到 Google Photos。</li>
+      <li>转完会自动存到手机的“下载”，再添加到 Google Photos。</li>
     </ol>
   </section>
 
@@ -103,7 +103,7 @@ pre#log { margin: 8px 0; padding: 10px; max-height: 260px; overflow: auto; backg
     <label id="audio-pick" hidden>这个视频有多条声音轨。转完没声音就换一条再试。
       <select id="audio-sel"></select>
     </label>
-    <button class="btn" id="go" type="button" hidden>转换整条视频</button>
+    <button class="btn" id="go" type="button" hidden>转换并保存</button>
     <div id="step-run" hidden>
       <div class="row"><span id="run-label">正在转换，请别离开这个页面</span><span class="pct" id="pct">0%</span></div>
       <div class="track"><div class="bar" id="bar"></div></div>
@@ -126,15 +126,15 @@ pre#log { margin: 8px 0; padding: 10px; max-height: 260px; overflow: auto; backg
     <h2><span class="n">3</span><span id="done-title">试听并保存</span></h2>
     <video id="preview" controls playsinline preload="metadata"></video>
     <p class="muted" id="out-info"></p>
-    <button class="btn" id="full" type="button" hidden>画面和声音都正常，转换整条</button>
-    <button class="btn" id="save" type="button">保存 MP4 到手机</button>
+    <button class="btn" id="full" type="button" hidden>画面和声音都正常，转换整条并保存</button>
+    <button class="btn" id="save" type="button">再保存一次</button>
     <p class="muted" id="save-note"></p>
     <button class="btn ghost" id="redo" type="button" hidden>画面是黑的？把画面也重新转一遍（慢）</button>
     <button class="btn ghost" id="again" type="button">再转一个</button>
   </section>
-  <p class="ver">版本 6</p>
+  <p class="ver">版本 7</p>
 </main>
 <script src="vendor/ffmpeg/ffmpeg.js"></script>
-<script src="app.js?v=6"></script>
+<script src="app.js?v=7"></script>
 </body>
 </html>

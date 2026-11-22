@@ -137,6 +137,7 @@ async function run(forceSlow, limit) {
     show('full', !!state.limit); show('save', !state.limit);
     $('done-title').textContent = state.limit ? '试看前 ' + state.limit + ' 秒' : '试听并保存';
     $('save-note').textContent = '';
+    if (!state.limit) { try { await save(true); } catch (e) {} }
   } catch (e) {
     show('step-run', false); show('go', true); show('try', true);
     if (job.canceled || (e && e.name === 'ConversionCanceledError')) return;
@@ -183,7 +184,7 @@ function outName() {
   return base + '_可播放.mp4';
 }
 
-async function save() {
+async function save(auto) {
   const note = $('save-note');
   const filename = outName();
   let downloads = null;
@@ -208,7 +209,9 @@ async function save() {
   const a = document.createElement('a');
   a.href = state.url; a.download = filename;
   document.body.appendChild(a); a.click(); a.remove();
-  note.textContent = '已开始下载。到手机的“下载”里找，再添加到 Google Photos。';
+  note.textContent = auto === true
+    ? '已自动保存到手机的“下载”。没看到的话，点上面的按钮再存一次。'
+    : '已开始下载。到手机的“下载”里找，再添加到 Google Photos。';
 }
 
 $('file').addEventListener('change', (e) => onFile(e.target.files && e.target.files[0]));
